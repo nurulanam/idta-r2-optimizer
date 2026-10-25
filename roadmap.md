@@ -171,7 +171,7 @@ Scan R2 buckets for dated asset folders, cross-reference them against WooCommerc
 
 ### Subphases & Tasks
 
-- [ ] **4.1 WooCommerce Order Asset Indexer (**`includes/class-order-indexer.php`**)**
+- [x] **4.1 WooCommerce Order Asset Indexer (**`includes/class-order-indexer.php`**)**
 
   - Query all orders having `_idp_assets` meta populated.
   - Support both database storage engines seamlessly:
@@ -186,14 +186,14 @@ Scan R2 buckets for dated asset folders, cross-reference them against WooCommerc
     - Asset Folder Path (`_idp_assets`, normalized without leading/trailing slashes, e.g. `2026/08/01/063701-213`).
   - Cache indexed lookup map in transient / memory for rapid matching during scans.
 
-- [ ] **4.2 Cloudflare R2 Folder Traversal Engine (**`includes/class-folder-scanner.php`**)**
+- [x] **4.2 Cloudflare R2 Folder Traversal Engine (**`includes/class-folder-scanner.php`**)**
 
   - Use `ListObjectsV2` with `delimiter = '/'` to discover top-level year prefixes (`2026/`, `2025/`).
   - Step through hierarchical date paths (`YYYY/MM/DD/`) to identify unique document folder prefixes (`YYYY/MM/DD/HHMMSS-XXX/`).
   - Read object keys inside each folder to identify uploaded assets and total byte sizes.
   - Implement pagination with `continuation_token` to handle buckets containing 50,000+ files without timeouts.
 
-- [ ] **4.3 Connection Analysis & Classification Logic**
+- [x] **4.3 Connection Analysis & Classification Logic**
 
   - Compare R2 folder paths against the WooCommerce Order Index:
     - **Green \[CONNECTED\]**:
@@ -206,7 +206,7 @@ Scan R2 buckets for dated asset folders, cross-reference them against WooCommerc
       - Order references the folder, but one or more of the 4 standard files (`portrait.jpg`, `license-front.jpg`, etc.) are missing in R2.
   - Calculate folder metrics: Total files count, folder size in KB/MB, oldest file timestamp, latest file timestamp.
 
-- [ ] **4.4 Asynchronous Batch Processing & Action Scheduler Integration**
+- [x] **4.4 Asynchronous Batch Processing & Action Scheduler Integration**
 
   - For large buckets, implement chunked scanning via WooCommerce Action Scheduler or WordPress Transients:
     - Scan in batches of 100 folders per step.

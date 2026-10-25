@@ -123,7 +123,17 @@ final class Plugin {
 	 */
 	private function init_hooks(): void {
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+
+		// Invalidate order index cache when orders change in WooCommerce.
+		add_action( 'woocommerce_new_order', array( $this, 'invalidate_order_index' ) );
+		add_action( 'woocommerce_update_order', array( $this, 'invalidate_order_index' ) );
+		add_action( 'woocommerce_order_status_changed', array( $this, 'invalidate_order_index' ) );
+
+		// Admin AJAX endpoints.
 		add_action( 'wp_ajax_idta_r2_test_connection', array( $this, 'ajax_test_connection' ) );
+		add_action( 'wp_ajax_idta_r2_scan_step', array( $this, 'ajax_scan_step' ) );
+		add_action( 'wp_ajax_idta_r2_get_scan_progress', array( $this, 'ajax_get_scan_progress' ) );
+		add_action( 'wp_ajax_idta_r2_reset_scan', array( $this, 'ajax_reset_scan' ) );
 	}
 
 	/**
@@ -132,6 +142,27 @@ final class Plugin {
 	 * @var Source_Mapper|null
 	 */
 	private ?Source_Mapper $source_mapper = null;
+
+	/**
+	 * Order indexer instance.
+	 *
+	 * @var Order_Indexer|null
+	 */
+	private ?Order_Indexer $order_indexer = null;
+
+	/**
+	 * Folder scanner instance.
+	 *
+	 * @var Folder_Scanner|null
+	 */
+	private ?Folder_Scanner $folder_scanner = null;
+
+	/**
+	 * Connection analyzer instance.
+	 *
+	 * @var Connection_Analyzer|null
+	 */
+	private ?Connection_Analyzer $connection_analyzer = null;
 
 	/**
 	 * Retrieve a configured Cloudflare R2 API client instance.
@@ -153,6 +184,115 @@ final class Plugin {
 		}
 
 		return $this->source_mapper;
+	}
+
+	/**
+	 * Retrieve the Order_Indexer service instance.
+	 *
+	 * @return Order_Indexer
+	 */
+	public function order_indexer(): Order_Indexer {
+		if ( null === $this->order_indexer ) {
+			$this->order_indexer = new Order_Indexer();
+		}
+
+		return $this->order_indexer;
+	}
+
+	/**
+	 * Retrieve the Folder_Scanner service instance.
+	 *
+	 * @return Folder_Scanner
+	 */
+	public function folder_scanner(): Folder_Scanner {
+		if ( null === $this->folder_scanner ) {
+			$this->folder_scanner = new Folder_Scanner();
+		}
+
+		return $this->folder_scanner;
+	}
+
+	/**
+	 * Retrieve the Connection_Analyzer service instance.
+	 *
+	 * @return Connection_Analyzer
+	 */
+	public function connection_analyzer(): Connection_Analyzer {
+		if ( null === $this->connection_analyzer ) {
+			$this->connection_analyzer = new Connection_Analyzer(
+				$this->order_indexer(),
+				$this->folder_scanner(),
+				$this->source_mapper()
+			);
+		}
+
+		return $this->connection_analyzer;
+	}
+
+	/**
+	 * Invalidate order asset index cache when orders are updated.
+	 */
+	public function invalidate_order_index(): void {
+		$this->order_indexer()->invalidate_cache();
+	}
+
+	/**
+	 * AJAX endpoint to run a single chunked step of an R2 bucket scan.
+	 */
+	public function ajax_scan_step(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'scan', 'nonce' );
+
+		$bucket = isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '';
+		if ( '' === $bucket ) {
+			$bucket = (string) $this->get_setting( 'default_bucket', '' );
+		}
+
+		if ( '' === $bucket ) {
+			wp_send_json_error( array( 'message' => __( 'No bucket specified or configured.', 'idta-r2-optimizer' ) ) );
+		}
+
+		$prefix = isset( $_POST['prefix'] ) ? sanitize_text_field( wp_unslash( $_POST['prefix'] ) ) : '';
+		$reset  = ! empty( $_POST['reset'] );
+
+		$state = $this->connection_analyzer()->run_scan_step( $bucket, $prefix, $reset );
+
+		if ( 'error' === $state['status'] ) {
+			wp_send_json_error( $state );
+		} else {
+			wp_send_json_success( $state );
+		}
+	}
+
+	/**
+	 * AJAX endpoint to retrieve current scan progress.
+	 */
+	public function ajax_get_scan_progress(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'scan', 'nonce' );
+
+		$state = $this->connection_analyzer()->get_scan_progress();
+		wp_send_json_success( $state );
+	}
+
+	/**
+	 * AJAX endpoint to reset/cancel scan.
+	 */
+	public function ajax_reset_scan(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'scan', 'nonce' );
+
+		$this->connection_analyzer()->reset_scan();
+		wp_send_json_success( array( 'message' => __( 'Scan reset successfully.', 'idta-r2-optimizer' ) ) );
 	}
 
 	/**
