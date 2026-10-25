@@ -27,6 +27,7 @@ defined( 'ABSPATH' ) || exit;
 
 const VERSION     = '1.0.0';
 const PLUGIN_FILE = __FILE__;
+const PLUGIN_DIR  = __DIR__;
 
 require_once __DIR__ . '/includes/class-autoloader.php';
 

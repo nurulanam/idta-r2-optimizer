@@ -33,10 +33,10 @@ class Source_Mapper {
 	 * Corresponds to \IDTA\PDF\Order_Data::ASSET_FILES.
 	 */
 	public const DEFAULT_ASSET_FILES = array(
-		'portrait'      => 'portrait.jpg',
-		'license_front' => 'license-front.jpg',
-		'license_back'  => 'license-back.jpg',
-		'signature'     => 'signature.png',
+		'passport_photo' => 'portrait.jpg',
+		'license_front'  => 'license-front.jpg',
+		'license_back'   => 'license-back.jpg',
+		'signature'      => 'signature.png',
 	);
 
 	/**
@@ -251,7 +251,7 @@ class Source_Mapper {
 			try {
 				$pdf_files = \IDTA\PDF\Order_Data::asset_filenames();
 				if ( is_array( $pdf_files ) && ! empty( $pdf_files ) ) {
-					$files = array_merge( $files, $pdf_files );
+					$files = $pdf_files;
 				}
 			} catch ( \Throwable ) {
 				// Fallback to default files.
@@ -263,7 +263,18 @@ class Source_Mapper {
 		 *
 		 * @param array<string,string> $files Associative array of asset keys to filenames.
 		 */
-		return (array) apply_filters( 'idta_r2_expected_asset_files', $files );
+		$filtered = (array) apply_filters( 'idta_r2_expected_asset_files', $files );
+
+		// Deduplicate: ensure only one preview slot per unique canonical filename.
+		$deduped = array();
+		foreach ( $filtered as $slot => $filename ) {
+			$lower_file = strtolower( trim( (string) $filename ) );
+			if ( ! in_array( $lower_file, array_map( 'strtolower', $deduped ), true ) ) {
+				$deduped[ $slot ] = $filename;
+			}
+		}
+
+		return $deduped;
 	}
 
 	/**

@@ -223,13 +223,13 @@ Create a clean, intuitive, modern WordPress administrative dashboard with overvi
 
 ### Subphases & Tasks
 
-- [ ] **5.1 Admin Menu & Screen Registration (**`includes/class-admin-page.php`**)**
+- [x] **5.1 Admin Menu & Screen Registration (**`includes/class-admin-page.php`**)**
 
   - Register top-level / sub-menu page under WooCommerce: `WooCommerce → R2 Optimizer` (slug: `idta-r2-optimizer`).
   - Enqueue dedicated, scoped styles (`assets/css/admin.css`) and JavaScript (`assets/js/admin.js`).
   - Localize script with REST/AJAX nonces, API endpoints, and i18n text strings.
 
-- [ ] **5.2 Storage & Connection Metric Cards**
+- [x] **5.2 Storage & Connection Metric Cards**
 
   - Display summary KPI cards at the top of the screen:
     - **Total Buckets**: Number of R2 buckets detected.
@@ -239,7 +239,7 @@ Create a clean, intuitive, modern WordPress administrative dashboard with overvi
     - **Broken Orders**: <span style="color: rgb(217, 119, 6);">**Amber count**</span> requiring attention.
     - **Estimated Monthly Savings**: Calculation of storage cost reclaimed upon deletion.
 
-- [ ] **5.3 Interactive Folder Explorer Table**
+- [x] **5.3 Interactive Folder Explorer Table**
 
   - Custom table with server-side pagination and sorting:
     - **Status Column**: Clear visual pill badge (Green `Connected`, Red `Orphaned`, Amber `Incomplete`).
@@ -254,7 +254,7 @@ Create a clean, intuitive, modern WordPress administrative dashboard with overvi
     - Date range filter: Year / Month dropdowns.
     - Search box: Filter by folder path, Order ID, or customer name.
 
-- [ ] **5.4 Folder Inspection Drawer / Modal**
+- [x] **5.4 Folder Inspection Drawer / Modal**
 
   - Clicking "Inspect" opens a modal displaying:
     - Image previews for all files in the folder (`portrait.jpg`, `license-front.jpg`, `license-back.jpg`, `signature.png`).
@@ -272,14 +272,14 @@ Provide comprehensive, secure data manipulation features allowing shop managers 
 
 ### Subphases & Tasks
 
-- [ ] **6.1 Single Folder Deletion (**`delete_folder`**)**
+- [x] **6.1 Single Folder Deletion (**`delete_folder`**)**
 
   - Action to delete all objects inside an orphaned folder prefix.
   - Guardrail: Hard block on deleting <span style="color: rgb(22, 163, 74);">**Green (Connected)**</span> folders unless an explicit admin override flag is checked.
   - Instant removal from R2 using `delete_objects_batch()`.
   - AJAX response updates KPI cards and removes row without full page refresh.
 
-- [ ] **6.2 Bulk Orphaned Cleanup Tool**
+- [x] **6.2 Bulk Orphaned Cleanup Tool**
 
   - Bulk action: "Delete Selected Orphaned Folders" or "Delete All Orphaned Older than X Days".
   - **Dry Run Mode**:
@@ -287,7 +287,7 @@ Provide comprehensive, secure data manipulation features allowing shop managers 
   - **Safety Check**: Verify that zero connected orders are in the deletion queue.
   - Chunked execution to prevent PHP execution timeouts on bulk deletions.
 
-- [ ] **6.3 Order Data Remapping & Update Tool (**`remap_folder`**)**
+- [x] **6.3 Order Data Remapping & Update Tool (**`remap_folder`**)**
 
   - Allows an administrator to connect an orphaned folder to a WooCommerce order:
     - Enter Order ID to associate.
@@ -296,7 +296,7 @@ Provide comprehensive, secure data manipulation features allowing shop managers 
   - Allows modifying or correcting the `_idp_assets` path on existing orders directly from the UI.
   - Option to move / rename folder path in R2 if customer data needs reorganization.
 
-- [ ] **6.4 Audit Trail & Safety Logging (**`includes/class-audit-logger.php`**)**
+- [x] **6.4 Audit Trail & Safety Logging (**`includes/class-audit-logger.php`**)**
 
   - Log all deletion, remapping, and configuration actions to database table `wp_idta_r2_logs`:
     - Timestamp
@@ -317,19 +317,19 @@ Enable hands-free background maintenance and automated retention policies, accom
 
 ### Subphases & Tasks
 
-- [ ] **7.1 Scheduled Background Audits**
+- [x] **7.1 Scheduled Background Audits**
 
   - Daily or weekly Action Scheduler task to re-index and scan buckets.
   - Cache results in WordPress transients for instant dashboard load times.
   - Email notification summary to store administrator if orphaned storage exceeds a configurable threshold (e.g. &gt; 5 GB).
 
-- [ ] **7.2 Automated Orphan Retention Policy**
+- [x] **7.2 Automated Orphan Retention Policy**
 
   - Optional setting: "Automatically purge orphaned folders older than \[ 30 / 60 / 90 \] days".
   - Ensures abandoned checkout uploads do not accumulate indefinitely.
   - Strict exclusion for any connected order folders regardless of age.
 
-- [ ] **7.3 WP-CLI Command Suite (**`includes/class-cli-commands.php`**)**
+- [x] **7.3 WP-CLI Command Suite (**`includes/class-cli-commands.php`**)**
 
   - Implement `wp r2-optimizer` commands:
     - `wp r2-optimizer test`: Test R2 connectivity.
@@ -348,23 +348,23 @@ Execute rigorous automated and manual validation to ensure zero PHP deprecations
 
 ### Subphases & Tasks
 
-- [ ] **8.1 PHPStan & Static Analysis**
+- [x] **8.1 PHPStan & Static Analysis**
 
   - Run PHPStan at Level 8 / Level Max.
   - Verify 100% type coverage, absence of deprecated function calls, and strict null safety.
 
-- [ ] **8.2 WPCS & Code Standards Linting**
+- [x] **8.2 WPCS & Code Standards Linting**
 
   - Run `phpcs` with `WordPress-Core`, `WordPress-Docs`, and `WooCommerce-Core` rulesets.
   - Verify complete escaping, sanitization, nonce checks, and database query formatting.
 
-- [ ] **8.3 Unit & Mock Integration Tests**
+- [x] **8.3 Unit & Mock Integration Tests**
 
   - Test SigV4 signing against AWS canonical test vectors.
   - Test R2 XML parsing (Bucket listing, Object listing, Batch delete responses).
   - Test HPOS and legacy postmeta query accuracy.
 
-- [ ] **8.4 Automated Plugin Build Script (**`bin/build-plugin-zip.sh`**)**
+- [x] **8.4 Automated Plugin Build Script (**`bin/build-plugin-zip.sh`**)**
 
   - Create standard distribution build script:
     - Cleans dev artifacts (`tests/`, `.git/`, `.github/`, `node_modules/`).
@@ -411,28 +411,41 @@ idta-r2-optimizer/
 ├── uninstall.php                  # Safe cleanup on uninstallation
 ├── bin/
 │   └── build-plugin-zip.sh        # Production zip packager
+├── dist/
+│   └── idta-r2-optimizer-v1.0.0.zip # Standalone production distribution package
+├── tests/
+│   └── test-suite.php             # Master automated QA & verification test harness
 ├── assets/
 │   ├── css/
 │   │   ├── admin.css              # Dashboard, KPI cards, table & badge styling
-│   │   └── admin.min.css
+│   │   └── admin.min.css          # Production minified stylesheet
 │   └── js/
 │       ├── admin.js               # Interactive table, AJAX scanner, modals
-│       └── admin.min.js
+│       └── admin.min.js           # Production minified script
 ├── includes/
 │   ├── class-autoloader.php       # PSR-4 dynamic class autoloader
 │   ├── class-plugin.php           # Central singleton service container
+│   ├── enum-connection-status.php # Status enum: Connected, Orphaned, Broken
+│   ├── class-bucket-record.php    # Bucket record DTO
+│   ├── class-folder-record.php    # Analyzed folder DTO with metrics
+│   ├── class-order-asset-record.php # Order asset cross-reference DTO
 │   ├── class-r2-signer.php        # Native AWS SigV4 HMAC-SHA256 signature generator
 │   ├── class-r2-client.php        # S3 REST API client (List, Get, Delete, Batch)
 │   ├── class-source-mapper.php    # IDTA PDF upload source & bucket resolver
 │   ├── class-order-indexer.php    # WooCommerce HPOS & postmeta asset lookup engine
 │   ├── class-folder-scanner.php   # R2 folder prefix traversal & batch engine
 │   ├── class-connection-analyzer.php # Green (Connected) vs Red (Orphaned) classifier
+│   ├── class-folder-manager.php   # Deletions, batch cleanup, order remapping
 │   ├── class-admin-page.php       # Admin dashboard controller & views
 │   ├── class-audit-logger.php     # Deletion & manipulation audit logger
+│   ├── class-scheduler.php        # Action Scheduler / WP-Cron background automation
 │   └── class-cli-commands.php     # WP-CLI terminal command suite
 └── templates/
     └── admin/
-        ├── dashboard.php          # Main view (KPIs, table, modals)
-        ├── settings.php           # Cloudflare R2 credentials & bucket mapping
-        └── modal-inspect.php      # Image preview & document inspection drawer
+        ├── dashboard.php          # Main explorer view (KPIs, toolbar, table)
+        ├── settings.php           # Cloudflare R2 credentials, bucket mapping, retention
+        ├── modal-inspect.php      # Document inspection drawer with image previews
+        ├── modal-remap.php        # Link orphaned folder to WooCommerce Order modal
+        ├── modal-dry-run.php      # Dry run bulk deletion simulation modal
+        └── modal-audit-log.php    # Operations history & CSV export modal
 ```

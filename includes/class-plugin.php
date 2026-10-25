@@ -134,6 +134,44 @@ final class Plugin {
 		add_action( 'wp_ajax_idta_r2_scan_step', array( $this, 'ajax_scan_step' ) );
 		add_action( 'wp_ajax_idta_r2_get_scan_progress', array( $this, 'ajax_get_scan_progress' ) );
 		add_action( 'wp_ajax_idta_r2_reset_scan', array( $this, 'ajax_reset_scan' ) );
+		add_action( 'wp_ajax_idta_r2_delete_folder', array( $this, 'ajax_delete_folder' ) );
+		add_action( 'wp_ajax_idta_r2_bulk_delete', array( $this, 'ajax_bulk_delete' ) );
+		add_action( 'wp_ajax_idta_r2_remap_folder', array( $this, 'ajax_remap_folder' ) );
+		add_action( 'wp_ajax_idta_r2_get_logs', array( $this, 'ajax_get_logs' ) );
+		add_action( 'wp_ajax_idta_r2_export_logs_csv', array( $this, 'ajax_export_logs_csv' ) );
+
+		// Initialize background scheduler.
+		$this->scheduler()->init();
+
+		// Register WP-CLI commands when running in CLI context.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			\WP_CLI::add_command( 'r2-optimizer', CLI_Commands::class );
+		}
+
+		// Initialize admin UI controller.
+		if ( is_admin() ) {
+			$this->admin_page();
+		}
+	}
+
+	/**
+	 * Admin page controller instance.
+	 *
+	 * @var Admin_Page|null
+	 */
+	private ?Admin_Page $admin_page = null;
+
+	/**
+	 * Retrieve the Admin_Page controller instance.
+	 *
+	 * @return Admin_Page
+	 */
+	public function admin_page(): Admin_Page {
+		if ( null === $this->admin_page ) {
+			$this->admin_page = new Admin_Page();
+		}
+
+		return $this->admin_page;
 	}
 
 	/**
@@ -213,6 +251,27 @@ final class Plugin {
 	}
 
 	/**
+	 * Audit logger instance.
+	 *
+	 * @var Audit_Logger|null
+	 */
+	private ?Audit_Logger $audit_logger = null;
+
+	/**
+	 * Folder manager instance.
+	 *
+	 * @var Folder_Manager|null
+	 */
+	private ?Folder_Manager $folder_manager = null;
+
+	/**
+	 * Scheduler instance.
+	 *
+	 * @var Scheduler|null
+	 */
+	private ?Scheduler $scheduler = null;
+
+	/**
 	 * Retrieve the Connection_Analyzer service instance.
 	 *
 	 * @return Connection_Analyzer
@@ -227,6 +286,51 @@ final class Plugin {
 		}
 
 		return $this->connection_analyzer;
+	}
+
+	/**
+	 * Retrieve the Audit_Logger service instance.
+	 *
+	 * @return Audit_Logger
+	 */
+	public function audit_logger(): Audit_Logger {
+		if ( null === $this->audit_logger ) {
+			$this->audit_logger = new Audit_Logger();
+		}
+
+		return $this->audit_logger;
+	}
+
+	/**
+	 * Retrieve the Folder_Manager service instance.
+	 *
+	 * @return Folder_Manager
+	 */
+	public function folder_manager(): Folder_Manager {
+		if ( null === $this->folder_manager ) {
+			$this->folder_manager = new Folder_Manager(
+				$this->r2(),
+				$this->order_indexer(),
+				$this->folder_scanner(),
+				$this->connection_analyzer(),
+				$this->audit_logger()
+			);
+		}
+
+		return $this->folder_manager;
+	}
+
+	/**
+	 * Retrieve the Scheduler service instance.
+	 *
+	 * @return Scheduler
+	 */
+	public function scheduler(): Scheduler {
+		if ( null === $this->scheduler ) {
+			$this->scheduler = new Scheduler();
+		}
+
+		return $this->scheduler;
 	}
 
 	/**
@@ -293,6 +397,121 @@ final class Plugin {
 
 		$this->connection_analyzer()->reset_scan();
 		wp_send_json_success( array( 'message' => __( 'Scan reset successfully.', 'idta-r2-optimizer' ) ) );
+	}
+
+	/**
+	 * AJAX endpoint to delete a single R2 folder.
+	 */
+	public function ajax_delete_folder(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'delete', 'nonce' );
+
+		$bucket = isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '';
+		$prefix = isset( $_POST['prefix'] ) ? sanitize_text_field( wp_unslash( $_POST['prefix'] ) ) : '';
+		$force  = ! empty( $_POST['force'] );
+
+		if ( '' === $bucket || '' === $prefix ) {
+			wp_send_json_error( array( 'message' => __( 'Missing bucket or folder prefix.', 'idta-r2-optimizer' ) ) );
+		}
+
+		try {
+			$result = $this->folder_manager()->delete_folder( $bucket, $prefix, $force );
+			wp_send_json_success( $result );
+		} catch ( \Throwable $e ) {
+			wp_send_json_error( array( 'message' => $e->getMessage() ) );
+		}
+	}
+
+	/**
+	 * AJAX endpoint to bulk delete orphaned folders.
+	 */
+	public function ajax_bulk_delete(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'delete', 'nonce' );
+
+		$bucket   = isset( $_POST['bucket'] ) ? sanitize_text_field( wp_unslash( $_POST['bucket'] ) ) : '';
+		$prefixes = isset( $_POST['prefixes'] ) && is_array( $_POST['prefixes'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['prefixes'] ) ) : array();
+		$dry_run  = ! empty( $_POST['dry_run'] );
+
+		if ( '' === $bucket || empty( $prefixes ) ) {
+			wp_send_json_error( array( 'message' => __( 'No folders selected for deletion.', 'idta-r2-optimizer' ) ) );
+		}
+
+		try {
+			$result = $this->folder_manager()->bulk_delete_orphaned( $bucket, $prefixes, $dry_run );
+			wp_send_json_success( $result );
+		} catch ( \Throwable $e ) {
+			wp_send_json_error( array( 'message' => $e->getMessage() ) );
+		}
+	}
+
+	/**
+	 * AJAX endpoint to remap an orphaned folder to a WooCommerce order.
+	 */
+	public function ajax_remap_folder(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'remap', 'nonce' );
+
+		$prefix   = isset( $_POST['prefix'] ) ? sanitize_text_field( wp_unslash( $_POST['prefix'] ) ) : '';
+		$order_id = isset( $_POST['order_id'] ) ? (int) $_POST['order_id'] : 0;
+
+		if ( '' === $prefix || $order_id <= 0 ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid folder path or Order ID.', 'idta-r2-optimizer' ) ) );
+		}
+
+		try {
+			$result = $this->folder_manager()->remap_folder( $prefix, $order_id );
+			wp_send_json_success( $result );
+		} catch ( \Throwable $e ) {
+			wp_send_json_error( array( 'message' => $e->getMessage() ) );
+		}
+	}
+
+	/**
+	 * AJAX endpoint to export audit logs to CSV.
+	 */
+	public function ajax_export_logs_csv(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_die( esc_html__( 'Unauthorized access.', 'idta-r2-optimizer' ), '', array( 'response' => 403 ) );
+		}
+
+		check_admin_referer( self::NONCE_ACTION_PREFIX . 'export_logs', 'nonce' );
+
+		$this->audit_logger()->export_csv();
+	}
+
+	/**
+	 * AJAX endpoint to retrieve recent audit logs.
+	 */
+	public function ajax_get_logs(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error( array( 'message' => __( 'Unauthorized', 'idta-r2-optimizer' ) ), 403 );
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'logs', 'nonce' );
+
+		$limit  = isset( $_POST['limit'] ) ? (int) $_POST['limit'] : 50;
+		$offset = isset( $_POST['offset'] ) ? (int) $_POST['offset'] : 0;
+		$action = ! empty( $_POST['action_type'] ) ? sanitize_key( wp_unslash( $_POST['action_type'] ) ) : null;
+
+		$logs  = $this->audit_logger()->get_logs( $limit, $offset, $action );
+		$total = $this->audit_logger()->get_total_count( $action );
+
+		wp_send_json_success(
+			array(
+				'logs'  => $logs,
+				'total' => $total,
+			)
+		);
 	}
 
 	/**
@@ -391,13 +610,15 @@ final class Plugin {
 		}
 
 		$defaults = array(
-			'account_id'        => '',
-			'access_key_id'     => '',
-			'secret_access_key' => '',
-			'default_bucket'    => '',
-			'custom_endpoint'   => '',
-			'source_buckets'    => array(),
-			'auto_purge_days'   => 0, // 0 = disabled
+			'account_id'         => '',
+			'access_key_id'      => '',
+			'secret_access_key'  => '',
+			'default_bucket'     => '',
+			'custom_endpoint'    => '',
+			'source_buckets'     => array(),
+			'schedule_frequency' => 'daily',
+			'alert_threshold_gb' => 5.0,
+			'auto_purge_days'    => 0, // 0 = disabled
 		);
 
 		$stored = get_option( self::SETTINGS_OPTION, array() );
@@ -472,21 +693,11 @@ final class Plugin {
 			);
 		}
 
-		// Initialize default settings option if not existing.
-		if ( false === get_option( self::SETTINGS_OPTION ) ) {
-			add_option(
-				self::SETTINGS_OPTION,
-				array(
-					'account_id'        => '',
-					'access_key_id'     => '',
-					'secret_access_key' => '',
-					'default_bucket'    => '',
-					'custom_endpoint'   => '',
-					'source_buckets'    => array(),
-					'auto_purge_days'   => 0,
-				)
-			);
-		}
+		// Initialize audit log table.
+		Audit_Logger::create_table_if_needed();
+
+		// Sync background schedules.
+		plugin()->scheduler()->sync_schedule();
 	}
 
 	/**
@@ -495,6 +706,9 @@ final class Plugin {
 	public static function deactivate(): void {
 		delete_transient( 'idta_r2_scan_progress' );
 		delete_transient( 'idta_r2_buckets_cache' );
+
+		// Clear all background schedules.
+		plugin()->scheduler()->clear_schedules();
 	}
 
 	/**
