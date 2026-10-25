@@ -123,6 +123,45 @@ final class Plugin {
 	 */
 	private function init_hooks(): void {
 		add_action( 'init', array( $this, 'load_textdomain' ) );
+		add_action( 'wp_ajax_idta_r2_test_connection', array( $this, 'ajax_test_connection' ) );
+	}
+
+	/**
+	 * Retrieve a configured Cloudflare R2 API client instance.
+	 *
+	 * @return R2_Client
+	 */
+	public function r2(): R2_Client {
+		return new R2_Client();
+	}
+
+	/**
+	 * AJAX endpoint to test R2 connection and credentials.
+	 */
+	public function ajax_test_connection(): void {
+		if ( ! $this->user_can_manage() ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Insufficient permissions.', 'idta-r2-optimizer' ) ),
+				403
+			);
+		}
+
+		check_ajax_referer( self::NONCE_ACTION_PREFIX . 'test_connection', 'nonce' );
+
+		// Allow testing custom credentials passed directly from settings form inputs before saving.
+		$account_id = isset( $_POST['account_id'] ) ? sanitize_text_field( wp_unslash( $_POST['account_id'] ) ) : null;
+		$access_key = isset( $_POST['access_key_id'] ) ? sanitize_text_field( wp_unslash( $_POST['access_key_id'] ) ) : null;
+		$secret_key = isset( $_POST['secret_access_key'] ) ? sanitize_text_field( wp_unslash( $_POST['secret_access_key'] ) ) : null;
+		$endpoint   = isset( $_POST['custom_endpoint'] ) ? esc_url_raw( wp_unslash( $_POST['custom_endpoint'] ) ) : null;
+
+		$client = new R2_Client( $account_id, $access_key, $secret_key, $endpoint );
+		$result = $client->test_connection();
+
+		if ( $result['success'] ) {
+			wp_send_json_success( $result );
+		} else {
+			wp_send_json_error( $result );
+		}
 	}
 
 	/**
@@ -217,6 +256,14 @@ final class Plugin {
 
 		if ( defined( 'IDTA_R2_SECRET_KEY' ) && is_string( IDTA_R2_SECRET_KEY ) ) {
 			$stored['secret_access_key'] = IDTA_R2_SECRET_KEY;
+		}
+
+		if ( defined( 'IDTA_R2_DEFAULT_BUCKET' ) && is_string( IDTA_R2_DEFAULT_BUCKET ) ) {
+			$stored['default_bucket'] = IDTA_R2_DEFAULT_BUCKET;
+		}
+
+		if ( defined( 'IDTA_R2_ENDPOINT' ) && is_string( IDTA_R2_ENDPOINT ) ) {
+			$stored['custom_endpoint'] = IDTA_R2_ENDPOINT;
 		}
 
 		$this->cached_settings = wp_parse_args( $stored, $defaults );

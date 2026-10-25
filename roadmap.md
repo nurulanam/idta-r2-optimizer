@@ -84,7 +84,7 @@ Build a lightweight, reliable, high-performance Cloudflare R2 API client that co
 
 ### Subphases & Tasks
 
-- [ ] **2.1 Cloudflare R2 Credential Architecture**
+- [x] **2.1 Cloudflare R2 Credential Architecture**
 
   - Design secure credential storage under WordPress options `idta_r2_settings`:
     - `account_id`: Cloudflare 32-character Account ID.
@@ -94,7 +94,7 @@ Build a lightweight, reliable, high-performance Cloudflare R2 API client that co
     - `custom_endpoint`: Optional custom S3 endpoint (defaults to `https://{account_id}.r2.cloudflarestorage.com`).
   - Support `wp-config.php` constant overrides (`IDTA_R2_ACCOUNT_ID`, `IDTA_R2_ACCESS_KEY`, `IDTA_R2_SECRET_KEY`) for enterprise security.
 
-- [ ] **2.2 Native AWS Signature v4 (SigV4) Signer**
+- [x] **2.2 Native AWS Signature v4 (SigV4) Signer**
 
   - Implement `includes/class-r2-signer.php`:
     - Generate HMAC-SHA256 SigV4 authentication headers without requiring the massive AWS SDK for PHP.
@@ -102,7 +102,7 @@ Build a lightweight, reliable, high-performance Cloudflare R2 API client that co
     - Region set to `auto` (as required by Cloudflare R2).
     - Service set to `s3`.
 
-- [ ] **2.3 S3-Compatible R2 Client (**`includes/class-r2-client.php`**)**
+- [x] **2.3 S3-Compatible R2 Client (**`includes/class-r2-client.php`**)**
 
   - Implement core REST methods utilizing `wp_remote_request()`:
     - `list_buckets()`: Fetches all buckets in the account (`GET /`).
@@ -112,13 +112,13 @@ Build a lightweight, reliable, high-performance Cloudflare R2 API client that co
     - `delete_objects_batch( string $bucket, array $keys )`: Multi-object XML batch deletion (`POST /?delete`).
     - `copy_object( string $bucket, string $source_key, string $dest_key )`: Copies/renames objects.
 
-- [ ] **2.4 Connection Health & Verification Service**
+- [x] **2.4 Connection Health & Verification Service**
 
   - Implement `test_connection()` method to validate credentials against the R2 endpoint.
   - Return clear, actionable error messages (e.g., Invalid credentials, Account ID mismatch, Network timeout).
   - Admin AJAX endpoint `idta_r2_test_connection` for immediate real-time feedback on the settings screen.
 
-- [ ] **2.5 Bucket Enumeration & Inspection**
+- [x] **2.5 Bucket Enumeration & Inspection**
 
   - Retrieve the full list of available buckets in the authenticated Cloudflare account.
   - Parse XML response into structured DTOs (`Bucket_Record`: name, creation date).
