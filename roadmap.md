@@ -225,7 +225,7 @@ Create a clean, intuitive, modern WordPress administrative dashboard with overvi
 
 - [x] **5.1 Admin Menu & Screen Registration (**`includes/class-admin-page.php`**)**
 
-  - Register top-level / sub-menu page under WooCommerce: `WooCommerce → R2 Optimizer` (slug: `idta-r2-optimizer`).
+  - Register dedicated top-level menu in WordPress dashboard: `R2 Optimizer` (slug: `idta-r2-optimizer`, icon: `dashicons-cloud`, position: 56).
   - Enqueue dedicated, scoped styles (`assets/css/admin.css`) and JavaScript (`assets/js/admin.js`).
   - Localize script with REST/AJAX nonces, API endpoints, and i18n text strings.
 

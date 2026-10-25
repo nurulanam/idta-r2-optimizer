@@ -12,7 +12,7 @@ namespace IDTA\R2Optimizer;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Controller for the WooCommerce → R2 Optimizer administrative screens.
+ * Controller for the dedicated R2 Optimizer administrative screens.
  */
 class Admin_Page {
 
@@ -22,7 +22,7 @@ class Admin_Page {
 	public const SLUG = 'idta-r2-optimizer';
 
 	/**
-	 * Admin hook suffix returned by add_submenu_page.
+	 * Admin hook suffix returned by add_menu_page.
 	 *
 	 * @var string|null
 	 */
@@ -41,34 +41,50 @@ class Admin_Page {
 	}
 
 	/**
-	 * Register the administrative menu entry under WooCommerce.
+	 * Register the dedicated top-level administrative menu entry in the WordPress dashboard.
 	 */
 	public function register_menu(): void {
 		$page_title = __( 'IDTA R2 Optimizer', 'idta-r2-optimizer' );
 		$menu_title = __( 'R2 Optimizer', 'idta-r2-optimizer' );
 		$capability = Plugin::REQUIRED_CAPABILITY;
 
-		$this->hook_suffix = add_submenu_page(
-			'woocommerce',
+		$this->hook_suffix = add_menu_page(
 			$page_title,
 			$menu_title,
+			$capability,
+			self::SLUG,
+			array( $this, 'render' ),
+			'dashicons-cloud',
+			56
+		);
+
+		// Submenu: Folder Explorer (defaults to main page).
+		add_submenu_page(
+			self::SLUG,
+			__( 'Folder Explorer - IDTA R2 Optimizer', 'idta-r2-optimizer' ),
+			__( 'Folder Explorer', 'idta-r2-optimizer' ),
 			$capability,
 			self::SLUG,
 			array( $this, 'render' )
 		);
 
-		// Fallback top-level menu if WooCommerce menu is not registered.
-		if ( false === $this->hook_suffix ) {
-			$this->hook_suffix = add_menu_page(
-				$page_title,
-				$menu_title,
-				$capability,
-				self::SLUG,
-				array( $this, 'render' ),
-				'dashicons-cloud',
-				56
-			);
-		}
+		// Submenu: Settings & Bucket Mapping.
+		add_submenu_page(
+			self::SLUG,
+			__( 'Settings - IDTA R2 Optimizer', 'idta-r2-optimizer' ),
+			__( 'Settings', 'idta-r2-optimizer' ),
+			$capability,
+			self::SLUG . '-settings',
+			array( $this, 'render_settings' )
+		);
+	}
+
+	/**
+	 * Render the settings view when accessed via the dedicated submenu item.
+	 */
+	public function render_settings(): void {
+		$_GET['tab'] = 'settings';
+		$this->render();
 	}
 
 	/**
@@ -77,7 +93,7 @@ class Admin_Page {
 	 * @param string $hook The current admin page hook.
 	 */
 	public function enqueue_assets( string $hook ): void {
-		if ( $hook !== $this->hook_suffix ) {
+		if ( $hook !== $this->hook_suffix && false === strpos( $hook, self::SLUG ) ) {
 			return;
 		}
 

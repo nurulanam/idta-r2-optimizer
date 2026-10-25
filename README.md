@@ -59,7 +59,7 @@ In the IDTA ecosystem, customer verification uploads (`portrait.jpg`, `license-f
 ### Manual Installation
 1. Upload the plugin files to `/wp-content/plugins/idta-r2-optimizer/` (or install the distribution zip file via **Plugins → Add New → Upload Plugin**).
 2. Activate the plugin in **WordPress → Plugins**.
-3. Navigate to **WooCommerce → R2 Optimizer → Settings**.
+3. Navigate to **R2 Optimizer → Settings** (dedicated menu item in the WordPress sidebar).
 
 ### Cloudflare R2 Credentials
 Enter your Cloudflare R2 API credentials:
@@ -95,7 +95,7 @@ Different front-end checkout portals can upload verification files to different 
 | `idpa` | IDPA companion portal | `idpa-html` |
 | *(fallback)* | Unmatched or custom origins | Configured Default Bucket |
 
-Configure explicit bucket mappings under **WooCommerce → R2 Optimizer → Settings → Front-End Source to R2 Bucket Mappings**.
+Configure explicit bucket mappings under **R2 Optimizer → Settings → Front-End Source to R2 Bucket Mappings**.
 
 ---
 
