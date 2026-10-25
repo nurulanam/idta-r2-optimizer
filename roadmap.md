@@ -134,7 +134,7 @@ Integrate with the existing `idta-pdf` plugin (`Order_Data::sources()`) to autom
 
 ### Subphases & Tasks
 
-- [ ] **3.1 IDTA PDF Source Detector (**`includes/class-source-mapper.php`**)**
+- [x] **3.1 IDTA PDF Source Detector (**`includes/class-source-mapper.php`**)**
 
   - Detect if `idta-pdf` is active.
   - Read configured upload sources via `\IDTA\PDF\Order_Data::sources()`:
@@ -142,7 +142,7 @@ Integrate with the existing `idta-pdf` plugin (`Order_Data::sources()`) to autom
     - Example: `'idpa' => 'https://pub-1c2e77688359483ca692ff2d8369b41b.r2.dev/'`
   - Fallback to reading the database option `idta_pdf_verification` if called outside the active hook lifecycle.
 
-- [ ] **3.2 Automatic & Manual Bucket Resolver**
+- [x] **3.2 Automatic & Manual Bucket Resolver**
 
   - Match public domain patterns to R2 bucket names:
     - Parse `.r2.dev` public bucket URLs.
@@ -152,7 +152,7 @@ Integrate with the existing `idta-pdf` plugin (`Order_Data::sources()`) to autom
     - `idpa` source ➔ Select R2 Bucket (e.g. `idpa-uploads`).
     - Unmatched sources ➔ Default Fallback Bucket.
 
-- [ ] **3.3 Asset Naming Specifications**
+- [x] **3.3 Asset Naming Specifications**
 
   - Register standard file keys and expected filenames per order folder (aligned with `\IDTA\PDF\Order_Data::ASSET_FILES`):
     - `portrait.jpg` (Passport Photo)

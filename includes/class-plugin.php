@@ -127,12 +127,32 @@ final class Plugin {
 	}
 
 	/**
+	 * Source mapper instance.
+	 *
+	 * @var Source_Mapper|null
+	 */
+	private ?Source_Mapper $source_mapper = null;
+
+	/**
 	 * Retrieve a configured Cloudflare R2 API client instance.
 	 *
 	 * @return R2_Client
 	 */
 	public function r2(): R2_Client {
 		return new R2_Client();
+	}
+
+	/**
+	 * Retrieve the Source_Mapper service instance.
+	 *
+	 * @return Source_Mapper
+	 */
+	public function source_mapper(): Source_Mapper {
+		if ( null === $this->source_mapper ) {
+			$this->source_mapper = new Source_Mapper();
+		}
+
+		return $this->source_mapper;
 	}
 
 	/**
