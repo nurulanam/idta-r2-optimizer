@@ -86,7 +86,7 @@ class Order_Indexer {
 
 		foreach ( $raw_rows as $row ) {
 			$folder_raw = (string) ( $row['asset_folder'] ?? '' );
-			$folder     = trim( $folder_raw, '/' );
+			$folder     = trim( str_replace( array( '\\/', '\\' ), '/', $folder_raw ), '/' );
 
 			if ( '' === $folder ) {
 				continue;
@@ -108,9 +108,11 @@ class Order_Indexer {
 			}
 			$multi_index[ $folder ][] = $record;
 
-			// Store latest in primary index.
-			$index[ $folder ]     = $record;
-			$for_cache[ $folder ] = $record->to_array();
+			// Store latest in primary index (first occurrence since query is ORDER BY id DESC).
+			if ( ! isset( $index[ $folder ] ) ) {
+				$index[ $folder ]     = $record;
+				$for_cache[ $folder ] = $record->to_array();
+			}
 		}
 
 		$this->memory_index = $index;
@@ -207,12 +209,13 @@ class Order_Indexer {
 	/**
 	 * Find an order linked to a specific folder path.
 	 *
-	 * @param string $folder_path R2 prefix or folder path.
+	 * @param string $folder_path   R2 prefix or folder path.
+	 * @param bool   $force_refresh Whether to force refresh index from database.
 	 * @return Order_Asset_Record|null Order record if found, or null.
 	 */
-	public function find_order_by_folder( string $folder_path ): ?Order_Asset_Record {
-		$clean_folder = trim( $folder_path, '/' );
-		$index        = $this->get_index();
+	public function find_order_by_folder( string $folder_path, bool $force_refresh = false ): ?Order_Asset_Record {
+		$clean_folder = trim( str_replace( array( '\\/', '\\' ), '/', $folder_path ), '/' );
+		$index        = $this->get_index( $force_refresh );
 
 		return $index[ $clean_folder ] ?? null;
 	}

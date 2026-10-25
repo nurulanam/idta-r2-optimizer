@@ -477,7 +477,7 @@ $tests_passed++;
 echo "\n5. Testing Connection Analyzer Classification Logic...\n";
 $indexer = new class() extends Order_Indexer {
 	public function __construct() {}
-	public function find_order_by_folder( string $folder_path ): ?Order_Asset_Record {
+	public function find_order_by_folder( string $folder_path, bool $force_refresh = false ): ?Order_Asset_Record {
 		if ( '2026/08/01/connected' === $folder_path ) {
 			return new Order_Asset_Record( 12345, 'wc-completed', '2026-08-01', 'John Doe', 'john@test.com', 'idta', '2026/08/01/connected' );
 		}
@@ -530,6 +530,40 @@ assert( $metrics['total_folders'] === 3, 'Total 3 folders' );
 assert( $metrics['connected_count'] === 1, '1 connected' );
 assert( $metrics['broken_count'] === 1, '1 broken' );
 assert( $metrics['orphaned_count'] === 1, '1 orphaned' );
+
+// 5.4 Order Indexer Latest Order Priority & Path Normalization
+$concrete_indexer = new class() extends Order_Indexer {
+	public function __construct() {}
+	protected function query_orders_with_assets(): array {
+		return array(
+			// DESC order: row 1 is newer Order #900, row 2 is older Order #100 with same folder
+			array(
+				'order_id'         => 900,
+				'asset_folder'     => '2026\/08\/01\/shared-folder',
+				'status'           => 'completed',
+				'date_created_gmt' => '2026-08-02 10:00:00',
+				'billing_email'    => 'new@test.com',
+				'customer_name'    => 'Newer Customer',
+				'order_from'       => 'idta',
+			),
+			array(
+				'order_id'         => 100,
+				'asset_folder'     => '2026/08/01/shared-folder/',
+				'status'           => 'processing',
+				'date_created_gmt' => '2026-08-01 10:00:00',
+				'billing_email'    => 'old@test.com',
+				'customer_name'    => 'Older Customer',
+				'order_from'       => 'idta',
+			),
+		);
+	}
+};
+$idx = $concrete_indexer->get_index( true );
+assert( isset( $idx['2026/08/01/shared-folder'] ), 'Index must normalize path' );
+assert( $idx['2026/08/01/shared-folder']->order_id === 900, 'Index must prioritize latest order (ID 900)' );
+$found = $concrete_indexer->find_order_by_folder( '2026/08/01/shared-folder/' );
+assert( $found !== null && $found->order_id === 900, 'find_order_by_folder must find latest order with trailing slash' );
+
 echo "✓ Connection health classification (Connected, Broken, Orphaned) & KPI metrics verified.\n";
 $tests_passed++;
 

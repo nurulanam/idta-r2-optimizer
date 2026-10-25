@@ -310,11 +310,19 @@ class Folder_Manager {
 		// Update folder record in scan state transient so UI reflects connected status immediately.
 		$this->update_folder_order_in_scan_state( $clean_prefix, $order );
 
+		$admin_url = '';
+		if ( method_exists( $order, 'get_edit_order_url' ) ) {
+			$admin_url = $order->get_edit_order_url();
+		} elseif ( function_exists( 'admin_url' ) ) {
+			$admin_url = admin_url( 'post.php?post=' . $target_order_id . '&action=edit' );
+		}
+
 		return array(
 			'success'       => true,
 			'order_id'      => $target_order_id,
 			'folder_path'   => $clean_path,
 			'customer_name' => $customer_name ?: __( 'Guest', 'idta-r2-optimizer' ),
+			'admin_url'     => $admin_url,
 			'previous_path' => $previous_path,
 		);
 	}

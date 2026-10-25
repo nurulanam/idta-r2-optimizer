@@ -25,6 +25,11 @@
 	--r2-text-muted: #64748b;
 }
 
+/* Universal HTML5 hidden attribute enforcement */
+[hidden] {
+	display: none !important;
+}
+
 .idta-r2-wrap {
 	margin-top: 15px;
 	max-width: 1380px;
@@ -627,6 +632,10 @@
 	padding: 14px 18px;
 	margin-bottom: 20px;
 	gap: 14px;
+}
+
+.idta-r2-inspect-order-card[hidden] {
+	display: none !important;
 }
 
 .idta-r2-order-card-icon .dashicons {

@@ -160,7 +160,11 @@ final class Folder_Record {
 		$date_format = get_option( 'date_format', 'Y-m-d' );
 		$time_format = get_option( 'time_format', 'H:i' );
 
-		return wp_date( $date_format . ' ' . $time_format, $timestamp );
+		if ( function_exists( 'wp_date' ) ) {
+			return wp_date( $date_format . ' ' . $time_format, $timestamp );
+		}
+
+		return gmdate( $date_format . ' ' . $time_format, $timestamp );
 	}
 
 	/**

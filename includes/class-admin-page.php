@@ -255,6 +255,15 @@ class Admin_Page {
 		$folder_data = plugin()->folder_scanner()->scan_single_folder( $bucket, $prefix );
 		$record      = plugin()->connection_analyzer()->analyze_folder( $bucket, $folder_data );
 
+		// If no linked order was cached, check if an order was recently placed/updated in database.
+		if ( null === $record->order ) {
+			$clean_path  = trim( str_replace( array( '\\/', '\\' ), '/', $prefix ), '/' );
+			$fresh_order = plugin()->order_indexer()->find_order_by_folder( $clean_path, true );
+			if ( null !== $fresh_order ) {
+				$record = plugin()->connection_analyzer()->analyze_folder( $bucket, $folder_data );
+			}
+		}
+
 		// Generate signed preview URLs for document images.
 		$signer   = new R2_Signer(
 			(string) plugin()->get_setting( 'access_key_id' ),

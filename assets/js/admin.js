@@ -115,9 +115,15 @@
 		var $progressBar = $('#scanProgressBar');
 		var $progressStatus = $('#scanProgressStatus');
 
+		// Clear previous scan state and reset table before starting fresh scan
+		state.allFolders = [];
+		state.filteredFolders = [];
+		state.currentPage = 1;
+		renderTable();
+
 		$btnScan.prop('disabled', true).find('#btnScanLabel').text(idtaR2Data.i18n.scanning);
-		$btnReset.prop('disabled', true);
-		$progressWrap.removeAttr('hidden');
+		$btnReset.prop('disabled', true).attr('hidden', true).hide();
+		$progressWrap.removeAttr('hidden').show();
 		$progressBar.css('width', '5%');
 		$progressStatus.html('<span class="spinner is-active"></span> ' + idtaR2Data.i18n.scanning);
 
@@ -154,6 +160,10 @@
 					var folderCount = Object.keys(scanData.folders || {}).length;
 					$('#scanProgressCount').text(folderCount + ' ' + idtaR2Data.i18n.foldersFound);
 
+					// Progressively stream scanned folders into table
+					state.allFolders = Object.values(scanData.folders || {});
+					applyFilters();
+
 					if (scanData.is_complete) {
 						finishScan(scanData);
 					} else {
@@ -181,10 +191,10 @@
 		$progressBar.css('width', '100%');
 		$progressStatus.html('<span class="dashicons dashicons-yes text-green"></span> ' + idtaR2Data.i18n.scanComplete);
 		$btnScan.prop('disabled', false).find('#btnScanLabel').text('Scan Bucket');
-		$btnReset.prop('disabled', false).removeAttr('hidden');
+		$btnReset.prop('disabled', false).removeAttr('hidden').show();
 
 		setTimeout(function () {
-			$('#scanProgressWrap').attr('hidden', true);
+			$('#scanProgressWrap').attr('hidden', true).hide();
 		}, 3000);
 
 		state.allFolders = Object.values(scanData.folders || {});
@@ -463,8 +473,8 @@
 		if (!$modal.length) return;
 
 		$('#idtaR2TableBody').on('click', '.btn-inspect', function () {
-			var prefix = $(this).data('prefix');
-			var bucket = $(this).data('bucket') || $('#idtaR2SelectBucket').val();
+			var prefix = $(this).attr('data-prefix') || $(this).data('prefix');
+			var bucket = $(this).attr('data-bucket') || $(this).data('bucket') || $('#idtaR2SelectBucket').val();
 			openInspector(bucket, prefix);
 		});
 
@@ -492,10 +502,20 @@
 		var $modal = $('#idtaR2InspectModal');
 		var $loader = $('#inspectLoader');
 		var $content = $('#inspectContent');
+		var $orderCard = $('#inspectOrderCard');
 
+		// Explicitly reset all modal elements to ensure no state leaks across items
 		$('#inspectFolderSubtitle').text(bucket + ' / ' + prefix);
+		$('#inspectOrderTitle').empty();
+		$('#inspectOrderStatus').empty().removeAttr('class');
+		$('#inspectOrderMeta').empty();
+		$('#inspectOrderLink').attr('href', '#');
+		$orderCard.attr('hidden', true).css('display', 'none').hide();
+		$('#inspectPreviewGrid').empty();
+		$('#inspectFilesTbody').empty();
+
 		$loader.show();
-		$content.attr('hidden', true);
+		$content.attr('hidden', true).css('display', 'none').hide();
 		$modal.addClass('is-open');
 
 		$.post(idtaR2Data.ajaxUrl, {
@@ -508,7 +528,7 @@
 			if (res.success && res.data) {
 				populateInspector(res.data);
 				$loader.hide();
-				$content.removeAttr('hidden');
+				$content.removeAttr('hidden').css('display', 'block').show();
 			} else {
 				alert(idtaR2Data.i18n.inspectError);
 				closeInspector();
@@ -525,20 +545,24 @@
 		var previews = data.previews || {};
 
 		var $orderCard = $('#inspectOrderCard');
-		if (folder.order) {
-			$('#inspectOrderTitle').text('Order #' + folder.order.order_id + ' — ' + folder.order.customer_name);
+		if (folder.order && folder.order.order_id) {
+			$('#inspectOrderTitle').text('Order #' + folder.order.order_id + ' — ' + (folder.order.customer_name || 'Guest'));
 			$('#inspectOrderStatus')
-				.attr('class', 'idta-r2-status-pill status-' + folder.status)
-				.text(folder.order.status_label || folder.order.status);
+				.attr('class', 'idta-r2-status-pill status-' + (folder.status || 'connected'))
+				.text(folder.order.status_label || folder.order.status || 'Connected');
 			$('#inspectOrderMeta').html(
-				'<strong>Email:</strong> ' + escapeHtml(folder.order.billing_email) +
-				' &bull; <strong>Source:</strong> <code>' + escapeHtml(folder.order.order_from) + '</code>' +
-				' &bull; <strong>Created:</strong> ' + escapeHtml(folder.order.formatted_date)
+				'<strong>Email:</strong> ' + escapeHtml(folder.order.billing_email || '—') +
+				' &bull; <strong>Source:</strong> <code>' + escapeHtml(folder.order.order_from || 'idta') + '</code>' +
+				' &bull; <strong>Created:</strong> ' + escapeHtml(folder.order.formatted_date || '—')
 			);
-			$('#inspectOrderLink').attr('href', folder.order.admin_url);
-			$orderCard.removeAttr('hidden');
+			$('#inspectOrderLink').attr('href', folder.order.admin_url || '#');
+			$orderCard.removeAttr('hidden').css('display', 'flex').show();
 		} else {
-			$orderCard.attr('hidden', true);
+			$('#inspectOrderTitle').empty();
+			$('#inspectOrderStatus').empty().removeAttr('class');
+			$('#inspectOrderMeta').empty();
+			$('#inspectOrderLink').attr('href', '#');
+			$orderCard.attr('hidden', true).css('display', 'none').hide();
 		}
 
 		var $grid = $('#inspectPreviewGrid');
@@ -614,6 +638,13 @@
 
 	function closeInspector() {
 		$('#idtaR2InspectModal').removeClass('is-open');
+		$('#inspectOrderTitle').empty();
+		$('#inspectOrderStatus').empty().removeAttr('class');
+		$('#inspectOrderMeta').empty();
+		$('#inspectOrderLink').attr('href', '#');
+		$('#inspectOrderCard').attr('hidden', true).css('display', 'none').hide();
+		$('#inspectPreviewGrid').empty();
+		$('#inspectFilesTbody').empty();
 	}
 
 	/**
@@ -622,9 +653,9 @@
 	function initRowActions() {
 		// Single folder deletion
 		$('#idtaR2TableBody').on('click', '.btn-delete', function () {
-			var prefix = $(this).data('prefix');
-			var bucket = $(this).data('bucket') || $('#idtaR2SelectBucket').val();
-			var status = $(this).data('status');
+			var prefix = $(this).attr('data-prefix') || $(this).data('prefix');
+			var bucket = $(this).attr('data-bucket') || $(this).data('bucket') || $('#idtaR2SelectBucket').val();
+			var status = $(this).attr('data-status') || $(this).data('status');
 			var force = false;
 
 			if (status === 'connected') {
@@ -650,8 +681,10 @@
 			})
 			.done(function (res) {
 				if (res.success) {
+					var cleanPrefix = (prefix || '').replace(/\/$/, '');
 					state.allFolders = state.allFolders.filter(function (f) {
-						return f.prefix !== prefix;
+						var fClean = (f.prefix || f.path || '').replace(/\/$/, '');
+						return fClean !== cleanPrefix;
 					});
 					recalculateLocalMetrics();
 					applyFilters();
@@ -672,7 +705,7 @@
 
 		// Open remap modal from row
 		$('#idtaR2TableBody').on('click', '.btn-remap', function () {
-			var prefix = $(this).data('prefix');
+			var prefix = $(this).attr('data-prefix') || $(this).data('prefix');
 			openRemapModal(prefix);
 		});
 	}
@@ -732,14 +765,16 @@
 				if (res.success && res.data) {
 					$feedback.attr('class', 'idta-r2-alert alert-success mt-15').text(idtaR2Data.i18n.remapSuccess).removeAttr('hidden');
 
+					var cleanPrefix = (prefix || '').replace(/\/$/, '');
 					$.each(state.allFolders, function (i, f) {
-						if (f.prefix === prefix) {
+						var fClean = (f.prefix || f.path || '').replace(/\/$/, '');
+						if (fClean === cleanPrefix) {
 							f.status = 'connected';
 							f.status_label = 'Connected';
 							f.order = {
 								order_id: res.data.order_id,
 								customer_name: res.data.customer_name,
-								admin_url: 'post.php?post=' + res.data.order_id + '&action=edit',
+								admin_url: res.data.admin_url || ('post.php?post=' + res.data.order_id + '&action=edit'),
 							};
 						}
 					});

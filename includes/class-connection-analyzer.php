@@ -77,7 +77,7 @@ class Connection_Analyzer {
 	 */
 	public function analyze_folder( string $bucket, array $raw_folder ): Folder_Record {
 		$prefix        = (string) ( $raw_folder['prefix'] ?? '' );
-		$path          = trim( $prefix, '/' );
+		$path          = trim( str_replace( array( '\\/', '\\' ), '/', $prefix ), '/' );
 		$files         = (array) ( $raw_folder['files'] ?? array() );
 		$total_size    = (int) ( $raw_folder['total_size'] ?? 0 );
 		$last_modified = (string) ( $raw_folder['last_modified'] ?? '' );
@@ -226,8 +226,13 @@ class Connection_Analyzer {
 			return $state;
 		}
 
-		// Ensure order index is warm before scanning.
-		$this->indexer->get_index();
+		// Ensure order index is fresh when starting a new scan or resetting.
+		if ( $reset ) {
+			$this->indexer->invalidate_cache();
+			$this->indexer->get_index( true );
+		} else {
+			$this->indexer->get_index();
+		}
 
 		try {
 			$batch = $this->scanner->scan_batch(
